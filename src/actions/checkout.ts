@@ -38,23 +38,42 @@ export const checkout = {
       email: string;
       items: { productId: string; talla: string; cantidad: number }[];
     }) => {
-      const supabase = getAdminClient();
+ const supabase = getAdminClient();
 
-      // Nunca confiar en precio/nombre que venga del cliente — se
-      // recalcula todo contra lo que hay hoy en la base.
-      const productIds = [...new Set(items.map((i) => i.productId))];
+const productIds = [...new Set(items.map((i) => i.productId))];
 
-      const { data, error: productsError } = await supabase
-        .from("products")
-        .select("id, club_seleccion, activo, precio, product_variants(id, talla, stock)")
-        .in("id", productIds);
+const { data: productsData, error: productsError } = await supabase
+  .from("products")
+  .select("id, club_seleccion, activo, precio")
+  .in("id", productIds);
 
-      if (productsError) {
-        throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo validar el carrito." });
-      }
+if (productsError) {
+  console.error("[Lester] Error consultando products:", productsError);
+  throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo validar el carrito." });
+}
 
-      const products = (data ?? []) as ProductRow[];
-      const productsById = new Map<string, ProductRow>(products.map((p) => [p.id, p]));
+const { data: variantsData, error: variantsError } = await supabase
+  .from("product_variants")
+  .select("id, product_id, talla, stock")
+  .in("product_id", productIds);
+
+if (variantsError) {
+  console.error("[Lester] Error consultando product_variants:", variantsError);
+  throw new ActionError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo validar el carrito." });
+}
+
+const variantsByProduct = new Map<string, VariantRow[]>();
+for (const v of variantsData ?? []) {
+  const list = variantsByProduct.get(v.product_id) ?? [];
+  list.push({ id: v.id, talla: v.talla, stock: v.stock });
+  variantsByProduct.set(v.product_id, list);
+}
+
+const products = (productsData ?? []).map((p) => ({
+  ...p,
+  product_variants: variantsByProduct.get(p.id) ?? [],
+})) as ProductRow[];
+const productsById = new Map<string, ProductRow>(products.map((p) => [p.id, p]));
 
       const lineItems: {
         productId: string;
