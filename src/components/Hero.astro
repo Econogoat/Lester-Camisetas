@@ -1,0 +1,38 @@
+---
+interface Props {
+  /** Reemplazar por la URL real de la foto editorial (luz lateral dura, fondo casi negro) */
+  imgUrl?: string;
+}
+
+const { imgUrl = "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=1600&q=80" } = Astro.props;
+const hasRealImage = !imgUrl.startsWith("[");
+---
+
+<section class="grain relative h-[55vh] min-h-[380px] w-full overflow-hidden bg-ink-raised">
+  {
+    hasRealImage ? (
+      <img src={imgUrl} alt="" class="absolute inset-0 h-full w-full object-cover object-center" />
+    ) : (
+      <div
+        class="absolute inset-0"
+        style="background: radial-gradient(120% 90% at 15% 20%, rgba(201,205,211,0.16), transparent 55%), linear-gradient(120deg, #0B0B0C 0%, #141416 55%, #0B0B0C 100%);"
+      />
+    )
+  }
+
+  <div class="absolute inset-0 bg-black/35"></div>
+
+  <div class="relative flex h-full items-end px-6 pb-12 sm:px-10 sm:pb-16 lg:px-16">
+    <div class="animate-fade-up" style="--delay: 80ms;">
+      <h1 class="font-display max-w-3xl text-left text-[clamp(2.5rem,6vw,5rem)] uppercase leading-[0.95] text-bone drop-shadow-[0_2px_20px_rgba(0,0,0,0.45)]">
+        No es merchandising.<br />Es patrimonio.
+      </h1>
+      <a
+        href="#catalogo"
+        class="font-inter mt-6 inline-block border border-bone/30 px-5 py-2.5 text-xs uppercase tracking-widest text-bone transition-colors hover:border-steel hover:text-steel"
+      >
+        Ver colección
+      </a>
+    </div>
+  </div>
+</section>

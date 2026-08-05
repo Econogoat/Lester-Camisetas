@@ -1,0 +1,120 @@
+---
+import { Search, Heart, ShoppingBag } from "lucide-astro";
+
+interface Props {
+  wishlistCount?: number;
+  cartCount?: number;
+}
+
+const { wishlistCount = 0, cartCount = 0 } = Astro.props;
+---
+
+<header class="border-b border-white/10 bg-ink">
+  <div class="flex items-center gap-4 px-6 py-5 sm:px-10 lg:px-16">
+    <a href="/" class="font-display shrink-0 text-2xl uppercase tracking-wider text-bone">
+      Lester
+    </a>
+
+    <!-- Buscador — desktop -->
+    <div class="mx-auto hidden w-full max-w-xl md:block">
+      <label class="group relative flex items-center">
+        <Search
+          class="pointer-events-none absolute left-3.5 h-4 w-4 text-bone/50 group-focus-within:text-steel"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
+        <input
+          type="search"
+          name="q"
+          placeholder="Buscar club, selección o jugador..."
+          class="font-inter w-full border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-bone placeholder:text-bone/40 outline-none transition-colors focus:border-steel"
+        />
+      </label>
+    </div>
+
+    <div class="ml-auto flex shrink-0 items-center gap-5 md:ml-0">
+      <!-- Buscador — trigger mobile -->
+      <button
+        type="button"
+        aria-label="Buscar"
+        data-search-toggle
+        class="text-bone/80 transition-colors hover:text-bone md:hidden"
+      >
+        <Search class="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+
+      <a href="/wishlist" aria-label="Favoritos" class="group relative text-bone/80 transition-colors hover:text-bone">
+        <Heart class="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+        <span
+          data-wishlist-badge
+          class={`font-inter absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-steel px-1 text-[10px] font-semibold text-black ${wishlistCount > 0 ? "" : "hidden"}`}
+        >
+          {wishlistCount}
+        </span>
+      </a>
+
+      <a href="/carrito" aria-label="Carrito" class="group relative text-bone/80 transition-colors hover:text-bone">
+        <ShoppingBag class="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+        <span
+          data-cart-badge
+          class={`font-inter absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-steel px-1 text-[10px] font-semibold text-black ${cartCount > 0 ? "" : "hidden"}`}
+        >
+          {cartCount}
+        </span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Buscador — panel mobile, colapsado por defecto -->
+  <div data-search-panel class="hidden border-t border-white/10 px-6 py-3 md:hidden">
+    <label class="group relative flex items-center">
+      <Search
+        class="pointer-events-none absolute left-3.5 h-4 w-4 text-bone/50"
+        strokeWidth={1.75}
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        name="q-mobile"
+        placeholder="Buscar club, selección o jugador..."
+        class="font-inter w-full border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-bone placeholder:text-bone/40 outline-none focus:border-steel"
+      />
+    </label>
+  </div>
+</header>
+
+<script>
+  import { getWishlist, getCartItemCount } from "../lib/browser-store";
+
+  const syncHeaderCounters = () => {
+    const wishlistCount = getWishlist().length;
+    const cartCount = getCartItemCount();
+
+    const wishlistBadge = document.querySelector("[data-wishlist-badge]");
+    const cartBadge = document.querySelector("[data-cart-badge]");
+
+    if (wishlistBadge) {
+      wishlistBadge.textContent = String(wishlistCount);
+      wishlistBadge.classList.toggle("hidden", wishlistCount === 0);
+    }
+
+    if (cartBadge) {
+      cartBadge.textContent = String(cartCount);
+      cartBadge.classList.toggle("hidden", cartCount === 0);
+    }
+  };
+
+  const toggle = document.querySelector("[data-search-toggle]");
+  const panel = document.querySelector("[data-search-panel]");
+
+  toggle?.addEventListener("click", () => {
+    const isHidden = panel?.classList.contains("hidden");
+    panel?.classList.toggle("hidden");
+    if (isHidden) {
+      panel?.querySelector("input")?.focus();
+    }
+  });
+
+  window.addEventListener("lester:store-update", syncHeaderCounters);
+  syncHeaderCounters();
+</script>

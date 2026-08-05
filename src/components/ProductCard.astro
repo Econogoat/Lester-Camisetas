@@ -1,0 +1,201 @@
+---
+import { Heart } from "lucide-astro";
+import type { Product } from "../data/products";
+
+interface Props {
+  product: Product;
+  delay?: number;
+}
+
+const { product, delay = 0 } = Astro.props;
+const hasRealImages = !product.imgFront.startsWith("[");
+
+const priceLabel = `$ ${product.price.toLocaleString("es-AR")}`;
+---
+
+<article
+  class="group animate-fade-up"
+  data-product-card
+  data-product-id={product.id}
+  data-product-club={product.club}
+  data-product-liga={product.liga}
+  data-product-temporada={product.temporada}
+  data-product-tipo={product.tipo}
+  data-product-version={product.version}
+  data-product-price={String(product.price)}
+  data-product-tallas={product.tallas.join(",")}
+  data-product-name={product.name}
+  style={`--delay: ${delay}ms;`}
+>
+  <div class="grain relative aspect-[4/5] overflow-hidden bg-ink-raised transition-transform duration-300 ease-editorial group-hover:scale-[1.02]">
+    {
+      hasRealImages ? (
+        <>
+          <img
+            src={product.imgFront}
+            alt={`${product.club} — ${product.name}, frente`}
+            class="absolute inset-0 h-full w-full object-cover opacity-100 transition-opacity duration-300 group-hover:opacity-0"
+          />
+          <img
+            src={product.imgBack}
+            alt={`${product.club} — ${product.name}, espalda`}
+            class="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          />
+        </>
+      ) : (
+        <div
+          class="absolute inset-0 flex items-center justify-center"
+          style="background: radial-gradient(110% 80% at 30% 10%, rgba(201,205,211,0.14), transparent 55%), linear-gradient(160deg, #141416 0%, #0B0B0C 100%);"
+        >
+          <span class="font-display text-6xl tracking-wide text-bone/10">{product.crest}</span>
+        </div>
+      )
+    }
+
+    {
+      product.badge && (
+        <span class="font-inter absolute left-0 top-0 bg-steel px-2.5 py-1 text-[10px] uppercase tracking-wide text-black">
+          {product.badge}
+        </span>
+      )
+    }
+
+    <button
+      type="button"
+      data-wishlist-toggle
+      data-product-id={product.id}
+      aria-label="Agregar a favoritos"
+      class="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center bg-black/50 text-bone opacity-100 backdrop-blur-sm transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100"
+    >
+      <Heart class="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+    </button>
+
+    {
+      product.tallas.length > 0 ? (
+        <div class="absolute bottom-2.5 left-2.5" data-cart-control>
+          <button
+            type="button"
+            data-cart-add
+            aria-label="Agregar al carrito"
+            class="flex h-8 w-8 items-center justify-center border border-white/10 bg-black/50 text-bone backdrop-blur-sm transition-colors hover:border-steel hover:text-steel"
+          >
+            <span class="text-xs font-bold">+</span>
+          </button>
+
+          <div
+            data-size-picker
+            class="pointer-events-none absolute bottom-10 left-0 z-10 flex gap-1 border border-white/10 bg-black/90 p-1.5 opacity-0 transition-opacity duration-150"
+          >
+            {product.tallas.map((talla) => (
+              <button
+                type="button"
+                data-size-option={talla}
+                class="font-inter h-7 w-9 border border-white/15 text-[11px] text-bone/80 transition-colors hover:border-steel hover:text-steel"
+              >
+                {talla}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <span class="absolute bottom-2.5 left-2.5 flex h-8 items-center border border-white/10 bg-black/50 px-2 text-[10px] uppercase tracking-wide text-bone/40 backdrop-blur-sm">
+          Sin stock
+        </span>
+      )
+    }
+
+    <span
+      class="font-inter absolute bottom-2.5 right-2.5 flex h-7 w-7 items-center justify-center border border-white/20 bg-black/50 text-[9px] font-semibold uppercase tracking-tight text-bone/80 backdrop-blur-sm"
+      aria-hidden="true"
+    >
+      {product.crest}
+    </span>
+  </div>
+
+  <div class="pt-3">
+    <p class="font-inter text-xs uppercase tracking-wide text-white/60">{product.club}</p>
+    <h3 class="font-inter mt-0.5 font-medium text-bone">{product.name}</h3>
+    <div class="mt-1.5 flex items-center justify-between">
+      <p class="font-inter font-bold text-bone">{priceLabel}</p>
+      {
+        Boolean(product.unidadesRestantes) && (
+          <p class="font-inter text-xs text-ember">Últimas {product.unidadesRestantes} unidades</p>
+        )
+      }
+      {
+        product.agotado && (
+          <p class="font-inter text-xs text-ember">Agotado</p>
+        )
+      }
+    </div>
+  </div>
+</article>
+
+<script>
+  import { isInWishlist, toggleWishlist, addProductToCart } from "../lib/browser-store";
+
+  const wireWishlistButtons = () => {
+    document.querySelectorAll("[data-wishlist-toggle]").forEach((button) => {
+      const buttonEl = button as HTMLButtonElement;
+      const productId = buttonEl.dataset.productId ?? "";
+
+      const paint = (active: boolean) => {
+        buttonEl.setAttribute("aria-pressed", String(active));
+        buttonEl.classList.toggle("text-steel", active);
+        buttonEl.classList.toggle("bg-steel", active);
+        buttonEl.classList.toggle("text-bone", !active);
+      };
+
+      paint(isInWishlist(productId));
+
+      buttonEl.addEventListener("click", () => {
+        paint(toggleWishlist(productId));
+      });
+    });
+  };
+
+  const wireCartControls = () => {
+    document.querySelectorAll("[data-cart-control]").forEach((control) => {
+      const card = control.closest("[data-product-card]") as HTMLElement | null;
+      const productId = card?.dataset.productId ?? "";
+      const addBtn = control.querySelector("[data-cart-add]");
+      const picker = control.querySelector("[data-size-picker]");
+      const sizeButtons = Array.from(control.querySelectorAll<HTMLButtonElement>("[data-size-option]"));
+
+      const openPicker = () => picker?.classList.remove("opacity-0", "pointer-events-none");
+      const closePicker = () => picker?.classList.add("opacity-0", "pointer-events-none");
+      const isPickerOpen = () => !picker?.classList.contains("opacity-0");
+
+      addBtn?.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        // Un solo talle disponible: se agrega directo, sin mostrar el picker.
+        if (sizeButtons.length === 1) {
+          const onlyTalla = sizeButtons[0].dataset.sizeOption ?? "";
+          addProductToCart(productId, onlyTalla, 1);
+          return;
+        }
+
+        isPickerOpen() ? closePicker() : openPicker();
+      });
+
+      sizeButtons.forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const talla = btn.dataset.sizeOption ?? "";
+          addProductToCart(productId, talla, 1);
+          closePicker();
+        });
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!control.contains(e.target as Node)) closePicker();
+      });
+    });
+  };
+
+  if (typeof window !== "undefined") {
+    wireWishlistButtons();
+    wireCartControls();
+  }
+</script>

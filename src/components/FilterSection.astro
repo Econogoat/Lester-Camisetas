@@ -1,0 +1,22 @@
+---
+import { ChevronDown } from "lucide-astro";
+
+interface Props {
+  title: string;
+  open?: boolean;
+}
+
+const { title, open = false } = Astro.props;
+---
+
+<details class="group border-b border-white/10 py-4" open={open}>
+  <summary
+    class="font-inter flex cursor-pointer list-none items-center justify-between text-sm uppercase tracking-wider text-bone [&::-webkit-details-marker]:hidden"
+  >
+    {title}
+    <ChevronDown class="h-4 w-4 text-bone/50 transition-transform duration-200 group-open:rotate-180" strokeWidth={2} aria-hidden="true" />
+  </summary>
+  <div class="pt-4">
+    <slot />
+  </div>
+</details>

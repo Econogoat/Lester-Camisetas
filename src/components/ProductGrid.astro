@@ -1,0 +1,366 @@
+---
+import ProductCard from "./ProductCard.astro";
+import type { Product } from "../data/products";
+
+interface Props {
+  products: Product[];
+}
+
+const { products } = Astro.props;
+---
+
+<div
+  id="catalogo"
+  data-catalog-grid
+  class="grid grid-cols-1 gap-x-6 gap-y-10 px-6 py-10 sm:grid-cols-2 sm:px-10 lg:grid-cols-3 lg:pl-10 lg:pr-16"
+>
+  {products.map((product, i) => (
+    <ProductCard product={product} delay={(i % 3) * 90} />
+  ))}
+</div>
+
+<script>
+  const resolveView = (value) => {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    return normalized === "list" ? "list" : "grid";
+  };
+
+  const getSelectedValues = (name) =>
+    new Set(
+      Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((input) => input.getAttribute("value"))
+    );
+
+  const getSelectedTallas = () =>
+    new Set(
+      Array.from(document.querySelectorAll("[data-talla-option][aria-pressed='true']")).map((button) => button.textContent?.trim())
+    );
+
+  const getPriceBounds = () => {
+    const minInput = document.querySelector("[data-price-min]") as HTMLInputElement | null;
+    const maxInput = document.querySelector("[data-price-max]") as HTMLInputElement | null;
+
+    return {
+      min: Number(minInput?.value ?? 0),
+      max: Number(maxInput?.value ?? Number.MAX_SAFE_INTEGER),
+    };
+  };
+
+  const getVisibleCards = () =>
+    Array.from(document.querySelectorAll("[data-product-card]")).filter((card) => !(card as HTMLElement).hidden);
+
+  const applyCatalogFilters = () => {
+    const cards = Array.from(document.querySelectorAll("[data-product-card]") as NodeListOf<HTMLElement>);
+    const selectedClubs = getSelectedValues("club");
+    const selectedLigas = getSelectedValues("liga");
+    const selectedTemporadas = getSelectedValues("temporada");
+    const selectedTipos = getSelectedValues("tipo");
+    const selectedVersiones = getSelectedValues("version");
+    const selectedTallas = getSelectedTallas();
+    const priceBounds = getPriceBounds();
+
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const productClub = card.dataset.productClub ?? "";
+      const productLiga = card.dataset.productLiga ?? "";
+      const productTemporada = card.dataset.productTemporada ?? "";
+      const productTipo = card.dataset.productTipo ?? "";
+      const productVersion = card.dataset.productVersion ?? "";
+      const productPrice = Number(card.dataset.productPrice ?? 0);
+      const productTallas = (card.dataset.productTallas ?? "")
+        .split(",")
+        .map((talla) => talla.trim())
+        .filter(Boolean);
+
+      const matchesClub = selectedClubs.size === 0 || selectedClubs.has(productClub);
+      const matchesLiga = selectedLigas.size === 0 || selectedLigas.has(productLiga);
+      const matchesTemporada = selectedTemporadas.size === 0 || selectedTemporadas.has(productTemporada);
+      const matchesTipo = selectedTipos.size === 0 || selectedTipos.has(productTipo);
+      const matchesVersion = selectedVersiones.size === 0 || selectedVersiones.has(productVersion);
+      const matchesTalla = selectedTallas.size === 0 || productTallas.some((talla) => selectedTallas.has(talla));
+      const matchesPrice = productPrice >= priceBounds.min && productPrice <= priceBounds.max;
+
+      const shouldShow =
+        matchesClub &&
+        matchesLiga &&
+        matchesTemporada &&
+        matchesTipo &&
+        matchesVersion &&
+        matchesTalla &&
+        matchesPrice;
+
+      card.hidden = !shouldShow;
+      if (shouldShow) visibleCount += 1;
+    });
+
+    const countLabel = document.querySelector("[data-results-count]");
+    if (countLabel) {
+      countLabel.textContent = `${visibleCount} camisetas encontradas`;
+    }
+  };
+
+  const applyCatalogSort = (sortValue) => {
+    const grid = document.querySelector("[data-catalog-grid]");
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll("[data-product-card]") as NodeListOf<HTMLElement>);
+    const visibleCards = cards.filter((card) => !card.hidden);
+
+    const sortedCards = [...visibleCards].sort((a, b) => {
+      const aPrice = Number(a.dataset.productPrice ?? 0);
+      const bPrice = Number(b.dataset.productPrice ?? 0);
+      const aSeason = a.dataset.productTemporada ?? "";
+      const bSeason = b.dataset.productTemporada ?? "";
+
+      switch (sortValue) {
+        case "precio-asc":
+          return aPrice - bPrice;
+        case "precio-desc":
+          return bPrice - aPrice;
+        case "novedad":
+          return (bSeason === "retro" ? 0 : Number(bSeason.slice(0, 4))) - (aSeason === "retro" ? 0 : Number(aSeason.slice(0, 4))) || bPrice - aPrice;
+        case "relevancia":
+        default:
+          return 0;
+      }
+    });
+
+    const hiddenCards = cards.filter((card) => card.hidden);
+    const orderedCards = [...hiddenCards, ...sortedCards];
+    orderedCards.forEach((card) => grid.appendChild(card));
+  };
+
+  const resetPriceInputs = () => {
+    const minInput = document.querySelector("[data-price-min]") as HTMLInputElement | null;
+    const maxInput = document.querySelector("[data-price-max]") as HTMLInputElement | null;
+    const min = Number(minInput?.getAttribute("min") ?? 0);
+    const max = Number(maxInput?.getAttribute("max") ?? 0);
+
+    if (minInput) minInput.value = String(min);
+    if (maxInput) maxInput.value = String(max);
+  };
+
+  const clearFilters = () => {
+    document.querySelectorAll('input[type="checkbox"][name]').forEach((input) => {
+      (input as HTMLInputElement).checked = false;
+    });
+
+    document.querySelectorAll("[data-talla-option]").forEach((button) => {
+      button.setAttribute("aria-pressed", "false");
+    });
+
+    resetPriceInputs();
+    document.querySelectorAll("[data-club-item]").forEach((item) => item.classList.remove("hidden"));
+    const clubSearch = document.querySelector("[data-club-search]") as HTMLInputElement | null;
+    if (clubSearch) clubSearch.value = "";
+
+    applyCatalogFilters();
+    updateUrlFromState();
+  };
+
+  const updateUrlFromState = () => {
+    const params = new URLSearchParams(window.location.search);
+
+    const setListParam = (key, values) => {
+      if (values.length > 0) {
+        params.set(key, values.join(","));
+      } else {
+        params.delete(key);
+      }
+    };
+
+    setListParam("club", [...getSelectedValues("club")]);
+    setListParam("liga", [...getSelectedValues("liga")]);
+    setListParam("temporada", [...getSelectedValues("temporada")]);
+    setListParam("tipo", [...getSelectedValues("tipo")]);
+    setListParam("version", [...getSelectedValues("version")]);
+    setListParam("talla", [...getSelectedTallas()]);
+
+    const priceMinInput = document.querySelector("[data-price-min]") as HTMLInputElement | null;
+    const priceMaxInput = document.querySelector("[data-price-max]") as HTMLInputElement | null;
+    const minValue = Number(priceMinInput?.value ?? 0);
+    const maxValue = Number(priceMaxInput?.value ?? 0);
+    const maxAllowed = Number(priceMaxInput?.getAttribute("max") ?? maxValue);
+
+    if (minValue > 0) {
+      params.set("min", String(minValue));
+    } else {
+      params.delete("min");
+    }
+
+    if (maxValue < maxAllowed) {
+      params.set("max", String(maxValue));
+    } else {
+      params.delete("max");
+    }
+
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+    window.history.replaceState({}, "", nextUrl);
+  };
+
+  const hydrateStateFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+
+    const setCheckboxesFromParam = (name, values) => {
+      document.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+        const checkbox = input as HTMLInputElement;
+        checkbox.checked = values.has(checkbox.value);
+      });
+    };
+
+    const clubValues = new Set((params.get("club") ?? "").split(",").filter(Boolean));
+    const ligaValues = new Set((params.get("liga") ?? "").split(",").filter(Boolean));
+    const temporadaValues = new Set((params.get("temporada") ?? "").split(",").filter(Boolean));
+    const tipoValues = new Set((params.get("tipo") ?? "").split(",").filter(Boolean));
+    const versionValues = new Set((params.get("version") ?? "").split(",").filter(Boolean));
+    const tallaValues = new Set((params.get("talla") ?? "").split(",").filter(Boolean));
+
+    setCheckboxesFromParam("club", clubValues);
+    setCheckboxesFromParam("liga", ligaValues);
+    setCheckboxesFromParam("temporada", temporadaValues);
+    setCheckboxesFromParam("tipo", tipoValues);
+    setCheckboxesFromParam("version", versionValues);
+
+    document.querySelectorAll("[data-talla-option]").forEach((button) => {
+      const talla = button.textContent?.trim() ?? "";
+      const active = tallaValues.has(talla);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+
+    const minInput = document.querySelector("[data-price-min]") as HTMLInputElement | null;
+    const maxInput = document.querySelector("[data-price-max]") as HTMLInputElement | null;
+    const minValue = params.get("min");
+    const maxValue = params.get("max");
+
+    if (minInput && minValue) minInput.value = minValue;
+    if (maxInput && maxValue) maxInput.value = maxValue;
+  };
+
+  const applyCatalogView = (viewValue?: string | null) => {
+    const view = resolveView(viewValue);
+    const grid = document.querySelector("[data-catalog-grid]");
+    if (!grid) return;
+
+    const isList = view === "list";
+    grid.classList.toggle("grid", !isList);
+    grid.classList.toggle("flex", isList);
+    grid.classList.toggle("flex-col", isList);
+    grid.classList.toggle("gap-4", isList);
+    grid.classList.toggle("gap-x-6", !isList);
+    grid.classList.toggle("gap-y-10", !isList);
+    grid.classList.toggle("sm:grid-cols-2", !isList);
+    grid.classList.toggle("lg:grid-cols-3", !isList);
+    grid.classList.toggle("px-6", !isList);
+    grid.classList.toggle("py-10", !isList);
+    grid.classList.toggle("sm:px-10", !isList);
+    grid.classList.toggle("lg:pl-10", !isList);
+    grid.classList.toggle("lg:pr-16", !isList);
+
+    const cards = Array.from(grid.querySelectorAll("[data-product-card]") as NodeListOf<HTMLElement>);
+
+    cards.forEach((card) => {
+      card.classList.toggle("flex", isList);
+      card.classList.toggle("flex-col", !isList);
+      card.classList.toggle("md:flex-row", isList);
+      card.classList.toggle("md:items-center", isList);
+      card.classList.toggle("w-full", isList);
+      card.classList.toggle("max-w-none", isList);
+      card.classList.toggle("sm:w-auto", isList);
+
+      const media = card.querySelector(".grain");
+      if (media) {
+        media.classList.toggle("w-full", isList);
+        media.classList.toggle("md:w-64", isList);
+        media.classList.toggle("md:flex-shrink-0", isList);
+        media.classList.toggle("aspect-[4/5]", !isList);
+        media.classList.toggle("aspect-[16/9]", isList);
+      }
+
+      const info = card.querySelector("div.pt-3");
+      if (info) {
+        info.classList.toggle("flex-1", isList);
+        info.classList.toggle("md:pl-5", isList);
+        info.classList.toggle("pt-3", !isList);
+        info.classList.toggle("pt-0", isList);
+      }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    if (isList) {
+      params.set("view", "list");
+    } else {
+      params.delete("view");
+    }
+    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", nextUrl);
+
+    const buttons = document.querySelectorAll("[data-view-toggle]");
+    buttons.forEach((button) => {
+      const isActive = button.getAttribute("data-view-toggle") === view;
+      button.setAttribute("aria-pressed", String(isActive));
+      button.classList.toggle("bg-steel", isActive);
+      button.classList.toggle("text-black", isActive);
+      button.classList.toggle("text-bone/60", !isActive);
+    });
+  };
+
+  const bindFilterEvents = () => {
+    document.querySelectorAll('input[type="checkbox"][name]').forEach((input) => {
+      input.addEventListener("change", () => {
+        applyCatalogFilters();
+        updateUrlFromState();
+      });
+    });
+
+    document.querySelectorAll("[data-talla-option]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const next = button.getAttribute("aria-pressed") === "true" ? "false" : "true";
+        button.setAttribute("aria-pressed", next);
+        applyCatalogFilters();
+        updateUrlFromState();
+      });
+    });
+
+    document.querySelectorAll("[data-price-min], [data-price-max]").forEach((input) => {
+      input.addEventListener("input", () => {
+        applyCatalogFilters();
+        updateUrlFromState();
+      });
+    });
+
+    document.querySelectorAll("[data-clear-filters]").forEach((button) => {
+      button.addEventListener("click", clearFilters);
+    });
+
+    document.querySelectorAll("[data-club-search]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const value = (input as HTMLInputElement).value.trim().toLowerCase();
+        document.querySelectorAll("[data-club-item]").forEach((item) => {
+          const clubName = item.getAttribute("data-club-item") ?? "";
+          item.classList.toggle("hidden", Boolean(value) && !clubName.includes(value));
+        });
+      });
+    });
+
+    window.addEventListener("lester:catalog-sort", (event) => {
+      const customEvent = event as CustomEvent<{ value?: string }>;
+      const sortValue = customEvent.detail?.value ?? "relevancia";
+      const params = new URLSearchParams(window.location.search);
+      params.set("sort", sortValue);
+      const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+      window.history.replaceState({}, "", nextUrl);
+      applyCatalogSort(sortValue);
+    });
+
+    document.addEventListener("lester:view-change", (event) => {
+      const customEvent = event as CustomEvent<{ view?: string }>;
+      applyCatalogView(customEvent.detail?.view ?? "grid");
+    });
+  };
+
+  hydrateStateFromUrl();
+  bindFilterEvents();
+  applyCatalogFilters();
+  applyCatalogView(new URLSearchParams(window.location.search).get("view"));
+</script>

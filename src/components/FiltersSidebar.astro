@@ -1,0 +1,74 @@
+---
+import { SlidersHorizontal, X } from "lucide-astro";
+import FiltersPanel from "./FiltersPanel.astro";
+import type { Product } from "../data/products";
+
+interface Props {
+  products: Product[];
+}
+
+const { products } = Astro.props;
+---
+
+<!-- Trigger — mobile / tablet -->
+<div class="flex items-center justify-between px-6 py-4 sm:px-10 lg:hidden">
+  <button
+    type="button"
+    data-filters-open
+    class="font-inter flex items-center gap-2 border border-white/15 px-4 py-2 text-xs uppercase tracking-widest text-bone/80 transition-colors hover:border-steel hover:text-bone"
+  >
+    <SlidersHorizontal class="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+    Filtros
+  </button>
+</div>
+
+<!-- Sidebar — desktop -->
+<aside class="hidden w-72 shrink-0 border-r border-white/10 py-8 pr-6 lg:block lg:pl-16">
+  <FiltersPanel products={products} />
+</aside>
+
+<!-- Drawer — mobile / tablet -->
+<div data-filters-drawer class="pointer-events-none fixed inset-0 z-50 lg:hidden" aria-hidden="true">
+  <div
+    data-filters-overlay
+    class="absolute inset-0 bg-black/90 opacity-0 transition-opacity duration-300"
+  >
+  </div>
+  <div
+    data-filters-panel
+    class="absolute inset-y-0 left-0 flex w-[85%] max-w-sm -translate-x-full flex-col bg-ink transition-transform duration-300 ease-editorial"
+  >
+    <div class="flex items-center justify-between border-b border-white/10 px-6 py-5">
+      <p class="font-inter text-xs uppercase tracking-widest text-bone/70">Filtros</p>
+      <button type="button" data-filters-close aria-label="Cerrar filtros" class="text-bone/70 hover:text-bone">
+        <X class="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto px-6 py-4">
+      <FiltersPanel products={products} />
+    </div>
+  </div>
+</div>
+
+<script>
+  const openBtn = document.querySelector("[data-filters-open]");
+  const closeBtn = document.querySelector("[data-filters-close]");
+  const drawer = document.querySelector("[data-filters-drawer]");
+  const overlay = document.querySelector("[data-filters-overlay]");
+  const panel = document.querySelector("[data-filters-panel]");
+
+  const setOpen = (open: boolean) => {
+    drawer?.setAttribute("aria-hidden", String(!open));
+    drawer?.classList.toggle("pointer-events-none", !open);
+    overlay?.classList.toggle("opacity-0", !open);
+    panel?.classList.toggle("-translate-x-full", !open);
+    document.body.classList.toggle("overflow-hidden", open);
+  };
+
+  openBtn?.addEventListener("click", () => setOpen(true));
+  closeBtn?.addEventListener("click", () => setOpen(false));
+  overlay?.addEventListener("click", () => setOpen(false));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setOpen(false);
+  });
+</script>

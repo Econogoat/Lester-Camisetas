@@ -1,0 +1,132 @@
+---
+import { ChevronDown } from "lucide-astro";
+
+interface Props {
+  count: number;
+}
+
+const { count } = Astro.props;
+
+const sortOptions = [
+  "Relevancia",
+  "Precio: menor a mayor",
+  "Precio: mayor a menor",
+  "Más nuevo primero",
+];
+---
+
+<div class="flex flex-col gap-4 border-b border-white/10 px-6 pb-4 pt-8 sm:px-10 sm:flex-row sm:items-end sm:justify-between lg:pl-10 lg:pr-16">
+  <div>
+    <p class="font-inter text-xs uppercase tracking-widest text-bone/50">
+      <a href="/" class="hover:text-bone/80">Home</a>
+      <span class="mx-1.5 text-bone/30">/</span>
+      <span class="text-bone/70">Camisetas</span>
+    </p>
+    <p class="font-inter mt-1.5 text-sm text-bone/60" data-results-count>{count} camisetas encontradas</p>
+  </div>
+
+  <div class="flex items-center gap-5">
+    <!-- Selector de orden -->
+    <details class="group relative">
+      <summary class="font-inter flex cursor-pointer list-none items-center gap-1.5 text-xs uppercase tracking-widest text-bone/70 [&::-webkit-details-marker]:hidden hover:text-bone">
+        <span data-sort-label>Relevancia</span>
+        <ChevronDown class="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180" strokeWidth={2} aria-hidden="true" />
+      </summary>
+      <ul
+        data-sort-list
+        class="font-inter absolute right-0 top-full z-20 mt-2 w-56 border border-white/10 bg-ink-raised py-1 text-xs uppercase tracking-wide text-bone/70 shadow-[0_12px_32px_rgba(0,0,0,0.5)]"
+      >
+        {sortOptions.map((option) => (
+          <li>
+            <button
+              type="button"
+              data-sort-option
+              data-sort-value={option.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "")}
+              class="block w-full px-4 py-2.5 text-left transition-colors hover:bg-white/5 hover:text-bone"
+            >
+              {option}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+
+    <!-- Toggle vista lista / grid -->
+    <div class="flex items-center gap-1 border border-white/10">
+      <button
+        type="button"
+        data-view-toggle="grid"
+        aria-label="Vista en grilla"
+        aria-pressed="true"
+        class="grid h-8 w-8 place-items-center bg-steel text-black transition-colors"
+      >
+        <span class="grid grid-cols-2 gap-[3px]">
+          <span class="h-[5px] w-[5px] bg-current"></span>
+          <span class="h-[5px] w-[5px] bg-current"></span>
+          <span class="h-[5px] w-[5px] bg-current"></span>
+          <span class="h-[5px] w-[5px] bg-current"></span>
+        </span>
+      </button>
+      <button
+        type="button"
+        data-view-toggle="list"
+        aria-label="Vista en lista"
+        aria-pressed="false"
+        class="grid h-8 w-8 place-items-center text-bone/60 transition-colors hover:text-bone"
+      >
+        <span class="flex flex-col gap-[3px]">
+          <span class="h-[2px] w-4 bg-current"></span>
+          <span class="h-[2px] w-4 bg-current"></span>
+          <span class="h-[2px] w-4 bg-current"></span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const details = document.querySelector("details:has([data-sort-list])") as HTMLDetailsElement | null;
+  const label = document.querySelector("[data-sort-label]");
+
+  const syncSortSelection = (value = "relevancia") => {
+    const option = document.querySelector(`[data-sort-value="${value}"]`);
+    if (label) label.textContent = option?.textContent?.trim() ?? "Relevancia";
+    if (details) details.open = false;
+  };
+
+  const sortFromUrl = new URLSearchParams(window.location.search).get("sort") ?? "relevancia";
+  syncSortSelection(sortFromUrl);
+
+  document.querySelectorAll("[data-sort-option]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const selected = btn.getAttribute("data-sort-value") ?? "relevancia";
+      syncSortSelection(selected);
+
+      const params = new URLSearchParams(window.location.search);
+      params.set("sort", selected);
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+      window.history.replaceState({}, "", nextUrl);
+
+      window.dispatchEvent(new CustomEvent("lester:catalog-sort", { detail: { value: selected } }));
+    });
+  });
+
+  // Toggle vista lista / grid
+  const viewButtons = document.querySelectorAll("[data-view-toggle]");
+  viewButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      viewButtons.forEach((b) => {
+        b.setAttribute("aria-pressed", "false");
+        b.classList.remove("bg-steel", "text-black");
+        b.classList.add("text-bone/60");
+      });
+      btn.setAttribute("aria-pressed", "true");
+      btn.classList.add("bg-steel", "text-black");
+      btn.classList.remove("text-bone/60");
+
+      const view = btn.getAttribute("data-view-toggle");
+      document.dispatchEvent(new CustomEvent("lester:view-change", { detail: { view } }));
+    });
+  });
+</script>

@@ -1,0 +1,268 @@
+---
+import FilterSection from "./FilterSection.astro";
+import type { Product } from "../data/products";
+
+interface Props {
+  products: Product[];
+}
+
+const { products } = Astro.props;
+
+const countBy = <T extends string>(getKey: (p: Product) => T) => {
+  const map = new Map<T, number>();
+  for (const p of products) {
+    const key = getKey(p);
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+};
+
+const clubs = countBy((p) => p.club);
+const ligas = countBy((p) => p.liga);
+
+// "retro" siempre al final; el resto ordenado por temporada más reciente primero
+// (funciona por comparación de string porque el formato "2025/26" es de largo fijo).
+const temporadaCounts = countBy((p) => p.temporada);
+const temporadas = [...temporadaCounts].sort(([a], [b]) => {
+  if (a === "retro") return 1;
+  if (b === "retro") return -1;
+  return b.localeCompare(a);
+});
+
+const tipos: Array<{ value: string }> = [{ value: "Local" }, { value: "Visitante" }, { value: "Alternativa" }];
+const versiones: Array<{ value: string }> = [{ value: "Jugador" }, { value: "Aficionado" }];
+const tallas = ["S", "M", "L", "XL", "XXL"];
+
+const precioMin = 0;
+const maxProductPrice = products.reduce((max, p) => Math.max(max, p.price), 0);
+const precioMax = Math.max(10000, Math.ceil((maxProductPrice || 100000) / 10000) * 10000);
+---
+
+<div class="font-inter">
+  <div class="mb-4 flex justify-end">
+    <button
+      type="button"
+      data-clear-filters
+      class="font-inter text-[10px] uppercase tracking-[0.2em] text-bone/60 transition-colors hover:text-bone"
+    >
+      Limpiar filtros
+    </button>
+  </div>
+
+  <FilterSection title="Club / Selección" open={true}>
+    <label class="relative mb-3 block">
+      <input
+        type="search"
+        data-club-search
+        placeholder="Buscar club o selección..."
+        class="w-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-bone placeholder:text-bone/40 outline-none focus:border-steel"
+      />
+    </label>
+    <ul class="max-h-48 space-y-2 overflow-y-auto pr-1 text-sm text-bone/80">
+      {clubs.map(([club, count]) => (
+        <li data-club-item={club.toLowerCase()} class="flex items-center justify-between gap-2">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="club" value={club} class="h-3.5 w-3.5 accent-steel" />
+            <span>{club}</span>
+          </label>
+          <span class="text-xs text-bone/40">{count}</span>
+        </li>
+      ))}
+    </ul>
+  </FilterSection>
+
+  <FilterSection title="Liga">
+    <ul class="space-y-2 text-sm text-bone/80">
+      {ligas.map(([liga, count]) => (
+        <li class="flex items-center justify-between gap-2">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="liga" value={liga} class="h-3.5 w-3.5 accent-steel" />
+            <span>{liga}</span>
+          </label>
+          <span class="text-xs text-bone/40">{count}</span>
+        </li>
+      ))}
+    </ul>
+  </FilterSection>
+
+  <FilterSection title="Temporada">
+    <ul class="space-y-2 text-sm text-bone/80">
+      {temporadas.map(([temporada, count]) => (
+        <li class="flex items-center justify-between gap-2">
+          <label class="flex items-center gap-2 capitalize">
+            <input type="checkbox" name="temporada" value={temporada} class="h-3.5 w-3.5 accent-steel" />
+            <span>{temporada}</span>
+          </label>
+          <span class="text-xs text-bone/40">{count}</span>
+        </li>
+      ))}
+    </ul>
+  </FilterSection>
+
+  <FilterSection title="Tipo">
+    <ul class="space-y-2 text-sm text-bone/80">
+      {tipos.map(({ value }) => (
+        <li>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="tipo" value={value} class="h-3.5 w-3.5 accent-steel" />
+            <span>{value}</span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  </FilterSection>
+
+  <FilterSection title="Versión">
+    <ul class="space-y-2 text-sm text-bone/80">
+      {versiones.map(({ value }) => (
+        <li>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="version" value={value} class="h-3.5 w-3.5 accent-steel" />
+            <span>{value}</span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  </FilterSection>
+
+  <FilterSection title="Talla">
+    <div class="grid grid-cols-5 gap-2">
+      {tallas.map((talla) => (
+        <button
+          type="button"
+          data-talla-option
+          class="border border-white/15 py-2 text-xs text-bone/70 transition-colors hover:border-steel hover:text-bone aria-pressed:border-steel aria-pressed:bg-steel aria-pressed:text-black"
+          aria-pressed="false"
+        >
+          {talla}
+        </button>
+      ))}
+    </div>
+  </FilterSection>
+
+  <FilterSection title="Precio">
+    <div class="px-1" data-price-range data-min={precioMin} data-max={precioMax}>
+      <div class="relative h-1 bg-white/10">
+        <div data-price-track class="absolute h-1 bg-steel"></div>
+      </div>
+      <div class="relative">
+        <input
+          type="range"
+          data-price-min
+          min={precioMin}
+          max={precioMax}
+          step="1000"
+          value={precioMin}
+          class="price-thumb pointer-events-none absolute -top-3 h-1 w-full appearance-none bg-transparent"
+        />
+        <input
+          type="range"
+          data-price-max
+          min={precioMin}
+          max={precioMax}
+          step="1000"
+          value={precioMax}
+          class="price-thumb pointer-events-none absolute -top-3 h-1 w-full appearance-none bg-transparent"
+        />
+      </div>
+      <div class="mt-4 flex items-center justify-between text-xs text-bone/60">
+        <span data-price-min-label>$ {precioMin.toLocaleString("es-AR")}</span>
+        <span data-price-max-label>$ {precioMax.toLocaleString("es-AR")}</span>
+      </div>
+    </div>
+  </FilterSection>
+</div>
+
+<style>
+  /* Range inputs superpuestos para simular un slider de doble punta */
+  .price-thumb::-webkit-slider-thumb {
+    pointer-events: auto;
+    appearance: none;
+    height: 14px;
+    width: 14px;
+    border-radius: 9999px;
+    background: #c9cdd3;
+    cursor: pointer;
+    margin-top: -6px;
+  }
+  .price-thumb::-moz-range-thumb {
+    pointer-events: auto;
+    height: 14px;
+    width: 14px;
+    border-radius: 9999px;
+    background: #c9cdd3;
+    border: none;
+    cursor: pointer;
+  }
+  .price-thumb::-webkit-slider-runnable-track {
+    height: 2px;
+    background: transparent;
+  }
+</style>
+
+<script>
+  // Buscador de club — filtra la lista visible
+  document.querySelectorAll("[data-club-search]").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      const value = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      const scope = (e.target as HTMLInputElement).closest("div");
+      scope?.querySelectorAll<HTMLElement>("[data-club-item]").forEach((item) => {
+        const match = item.dataset.clubItem?.includes(value);
+        item.classList.toggle("hidden", !match);
+      });
+    });
+  });
+
+  // Talla — selección múltiple tipo chip
+  document.querySelectorAll("[data-talla-option]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const pressed = btn.getAttribute("aria-pressed") === "true";
+      btn.setAttribute("aria-pressed", String(!pressed));
+      window.dispatchEvent(new CustomEvent("lester:catalog-filter"));
+    });
+  });
+
+  // Precio — dos range inputs superpuestos, clamp para que min <= max
+  document.querySelectorAll("[data-price-range]").forEach((wrapper) => {
+    const min = Number(wrapper.getAttribute("data-min"));
+    const max = Number(wrapper.getAttribute("data-max"));
+    const minInput = wrapper.querySelector<HTMLInputElement>("[data-price-min]");
+    const maxInput = wrapper.querySelector<HTMLInputElement>("[data-price-max]");
+    const minLabel = wrapper.querySelector("[data-price-min-label]");
+    const maxLabel = wrapper.querySelector("[data-price-max-label]");
+    const track = wrapper.querySelector<HTMLElement>("[data-price-track]");
+
+    const format = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
+
+    const update = () => {
+      if (!minInput || !maxInput) return;
+      let minVal = Number(minInput.value);
+      let maxVal = Number(maxInput.value);
+      if (minVal > maxVal) [minVal, maxVal] = [maxVal, minVal];
+
+      if (minLabel) minLabel.textContent = format(minVal);
+      if (maxLabel) maxLabel.textContent = format(maxVal);
+      if (track) {
+        const left = ((minVal - min) / (max - min)) * 100;
+        const right = ((maxVal - min) / (max - min)) * 100;
+        track.style.left = `${left}%`;
+        track.style.width = `${right - left}%`;
+      }
+    };
+
+    minInput?.addEventListener("input", () => {
+      update();
+      window.dispatchEvent(new CustomEvent("lester:catalog-filter"));
+    });
+    maxInput?.addEventListener("input", () => {
+      update();
+      window.dispatchEvent(new CustomEvent("lester:catalog-filter"));
+    });
+    update();
+  });
+
+  window.addEventListener("lester:catalog-filter", () => {
+    const filterEvent = new Event("catalog:filters-change");
+    window.dispatchEvent(filterEvent);
+  });
+</script>

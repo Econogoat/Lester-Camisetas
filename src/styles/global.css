@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  /* Pega tu imagen aquí: cambia la URL por la tuya */
+  --site-background-image: url("https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&w=1600&q=80");
+  --site-background-overlay: rgba(11, 11, 12, 0.75);
+}
+
+@layer base {
+  * {
+    @apply border-ink-line;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-ink text-bone font-inter antialiased;
+    background-color: #0b0b0c;
+    background-image:
+      linear-gradient(var(--site-background-overlay), var(--site-background-overlay)),
+      var(--site-background-image),
+      radial-gradient(circle at 1px 1px, rgba(245, 243, 239, 0.045) 1px, transparent 0);
+    background-size: cover, cover, 3px 3px;
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-position: center center, center center, center;
+    background-attachment: fixed, fixed, scroll;
+  }
+
+  ::selection {
+    @apply bg-steel text-ink;
+  }
+
+  /* Visible keyboard focus everywhere — never suppressed */
+  :focus-visible {
+    outline: 1px solid #c9cdd3;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Editorial grain overlay for photography containers */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+}
+
+@layer utilities {
+  /* Fade-up cascade — content enters from 8px below, staggered via --delay per element */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s cubic-bezier(0.65, 0, 0.35, 1) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
