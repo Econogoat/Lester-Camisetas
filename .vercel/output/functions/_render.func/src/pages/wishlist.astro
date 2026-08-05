@@ -1,0 +1,94 @@
+---
+import Layout from "../layouts/Layout.astro";
+import UtilityBar from "../components/UtilityBar.astro";
+import Header from "../components/Header.astro";
+import { getPublicProducts } from "../lib/products-query";
+
+const products = await getPublicProducts();
+const catalogJson = JSON.stringify(products).replace(/</g, "\\u003c");
+---
+
+<Layout title="Favoritos — Lester">
+  <UtilityBar />
+  <Header />
+
+  <div class="mx-auto max-w-5xl px-6 py-10 sm:px-10 lg:px-16">
+    <h1 class="font-display text-2xl uppercase tracking-wide text-bone">Tus favoritos</h1>
+
+    <div data-wishlist-empty class="mt-10 hidden text-center">
+      <p class="text-sm text-bone/60">Todavía no marcaste ninguna camiseta como favorita.</p>
+      <a
+        href="/"
+        class="mt-4 inline-block border border-steel px-5 py-2.5 text-xs uppercase tracking-widest text-steel transition-colors hover:bg-steel hover:text-black"
+      >
+        Ver catálogo
+      </a>
+    </div>
+
+    <div data-wishlist-items class="mt-8 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3"></div>
+  </div>
+</Layout>
+
+<script type="application/json" id="catalog-data" set:html={catalogJson} />
+
+<script>
+  import { getWishlist, toggleWishlist } from "../lib/browser-store";
+  import type { Product } from "../data/products";
+
+  const catalogDataEl = document.getElementById("catalog-data");
+  const catalog: Product[] = catalogDataEl ? JSON.parse(catalogDataEl.textContent || "[]") : [];
+  const catalogById = new Map(catalog.map((p) => [p.id, p]));
+
+  const container = document.querySelector("[data-wishlist-items]");
+  const emptyState = document.querySelector("[data-wishlist-empty]");
+
+  const formatPrice = (n: number) => `$ ${n.toLocaleString("es-AR")}`;
+
+  const render = () => {
+    if (!container) return;
+    const products = getWishlist()
+      .map((id) => catalogById.get(id))
+      .filter((p): p is Product => Boolean(p));
+
+    if (products.length === 0) {
+      container.innerHTML = "";
+      emptyState?.classList.remove("hidden");
+      return;
+    }
+    emptyState?.classList.add("hidden");
+
+    container.innerHTML = products
+      .map((product) => {
+        const hasRealImage = product.imgFront && !product.imgFront.startsWith("[");
+        const media = hasRealImage
+          ? `<img src="${product.imgFront}" alt="" class="h-full w-full object-cover" />`
+          : `<div class="flex h-full items-center justify-center"><span class="font-display text-5xl text-bone/10">${product.crest}</span></div>`;
+
+        return `
+          <div data-wishlist-card data-product-id="${product.id}">
+            <div class="relative aspect-[4/5] overflow-hidden bg-ink-raised">
+              ${media}
+              <button type="button" data-remove-wishlist aria-label="Quitar de favoritos" class="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center bg-black/60 text-steel transition-colors hover:text-bone">✕</button>
+            </div>
+            <div class="pt-3">
+              <p class="text-xs uppercase tracking-wide text-bone/60">${product.club}</p>
+              <p class="mt-0.5 text-sm font-medium text-bone">${product.name}</p>
+              <p class="mt-1 text-sm font-bold text-bone">${formatPrice(product.price)}</p>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    container.querySelectorAll("[data-wishlist-card]").forEach((card) => {
+      const productId = card.getAttribute("data-product-id") ?? "";
+      card.querySelector("[data-remove-wishlist]")?.addEventListener("click", () => {
+        toggleWishlist(productId);
+        render();
+      });
+    });
+  };
+
+  render();
+  window.addEventListener("lester:store-update", render);
+</script>

@@ -1,0 +1,17 @@
+import{c as v,s as u,r as y}from"./browser-store.DG2rWj9f.js";import{a as g}from"./virtual.Dd6w4JCB.js";const m=document.getElementById("catalog-data"),f=m?JSON.parse(m.textContent||"[]"):[],k=new Map(f.map(a=>[a.id,a])),l=document.querySelector("[data-cart-items]"),p=document.querySelector("[data-cart-empty]"),b=document.querySelector("[data-cart-summary]"),h=document.querySelector("[data-cart-total]"),o=document.getElementById("checkout-button"),I=document.getElementById("checkout-email"),n=document.querySelector("[data-checkout-error]"),x=a=>`$ ${a.toLocaleString("es-AR")}`,c=()=>{if(!l)return;const a=v();if(a.length===0){l.innerHTML="",p?.classList.remove("hidden"),b?.classList.add("hidden");return}p?.classList.add("hidden"),b?.classList.remove("hidden");let s=0;l.innerHTML=a.map(e=>{const t=k.get(e.productId);if(!t)return"";const r=t.price*e.cantidad;s+=r;const i=t.imgFront&&!t.imgFront.startsWith("[")?`<img src="${t.imgFront}" alt="" class="h-full w-full object-cover" />`:`<div class="flex h-full items-center justify-center"><span class="font-display text-3xl text-bone/10">${t.crest}</span></div>`;return`
+          <div class="flex items-center gap-4 py-5" data-cart-row data-product-id="${e.productId}" data-talla="${e.talla}">
+            <div class="h-16 w-16 shrink-0 overflow-hidden bg-ink-raised">${i}</div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-xs uppercase tracking-wide text-bone/50">${t.club}</p>
+              <p class="truncate text-sm text-bone">${t.name}</p>
+              <p class="mt-0.5 text-xs text-bone/50">Talle ${e.talla}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" data-qty-decrease aria-label="Restar" class="h-7 w-7 border border-white/15 text-bone/70 transition-colors hover:border-steel hover:text-steel">−</button>
+              <span class="w-6 text-center text-sm text-bone">${e.cantidad}</span>
+              <button type="button" data-qty-increase aria-label="Sumar" class="h-7 w-7 border border-white/15 text-bone/70 transition-colors hover:border-steel hover:text-steel">+</button>
+            </div>
+            <p class="w-20 shrink-0 text-right text-sm text-bone">${x(r)}</p>
+            <button type="button" data-remove-item aria-label="Quitar" class="shrink-0 text-bone/40 transition-colors hover:text-ember">✕</button>
+          </div>
+        `}).join(""),h&&(h.textContent=x(s)),l.querySelectorAll("[data-cart-row]").forEach(e=>{const t=e.getAttribute("data-product-id")??"",r=e.getAttribute("data-talla")??"",d=a.find(i=>i.productId===t&&i.talla===r);d&&(e.querySelector("[data-qty-decrease]")?.addEventListener("click",()=>{u(t,r,d.cantidad-1),c()}),e.querySelector("[data-qty-increase]")?.addEventListener("click",()=>{u(t,r,d.cantidad+1),c()}),e.querySelector("[data-remove-item]")?.addEventListener("click",()=>{y(t,r),c()}))})};c();window.addEventListener("lester:store-update",c);o?.addEventListener("click",async()=>{const a=I?.value.trim()??"";if(n?.classList.add("hidden"),!a){n&&(n.textContent="Ingresá tu email para continuar.",n.classList.remove("hidden"));return}const s=v().map(r=>({productId:r.productId,talla:r.talla,cantidad:r.cantidad}));o.disabled=!0,o.textContent="Redirigiendo...";const{data:e,error:t}=await g.checkout.create({email:a,items:s});if(t||!e?.checkoutUrl){n&&(n.textContent=t?.message??"No se pudo iniciar el pago. Probá de nuevo.",n.classList.remove("hidden")),o.disabled=!1,o.textContent="Finalizar compra";return}window.location.href=e.checkoutUrl});

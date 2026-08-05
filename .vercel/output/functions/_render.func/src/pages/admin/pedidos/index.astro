@@ -1,0 +1,93 @@
+---
+import AdminLayout from "../../../layouts/AdminLayout.astro";
+import { actions } from "astro:actions";
+
+const result = Astro.getActionResult(actions.orders.markShipped);
+
+const { data: orders, error } = await Astro.locals.supabase
+  .from("orders")
+  .select("id, email, total, estado_pago, estado_envio, numero_seguimiento, created_at")
+  .order("created_at", { ascending: false });
+---
+
+<AdminLayout title="Pedidos — Panel Lester">
+  <h1 class="font-display text-2xl uppercase tracking-wide text-bone">Pedidos</h1>
+  <p class="mt-1 text-sm text-bone/50">
+    {orders?.length ?? 0} pedido{orders?.length === 1 ? "" : "s"}
+  </p>
+
+  {error && <p class="mt-6 text-sm text-ember">Error cargando pedidos: {error.message}</p>}
+  {result?.error && <p class="mt-6 text-sm text-ember">{result.error.message}</p>}
+
+  <div class="mt-6 overflow-x-auto border border-white/10">
+    <table class="w-full min-w-[760px] text-left text-sm">
+      <thead>
+        <tr class="border-b border-white/10 text-xs uppercase tracking-wider text-bone/50">
+          <th class="px-4 py-3 font-medium">Pedido</th>
+          <th class="px-4 py-3 font-medium">Cliente</th>
+          <th class="px-4 py-3 font-medium">Total</th>
+          <th class="px-4 py-3 font-medium">Pago</th>
+          <th class="px-4 py-3 font-medium">Envío</th>
+          <th class="px-4 py-3 font-medium">Marcar como enviado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          (orders ?? []).map((o: any) => (
+            <tr class="border-b border-white/5 align-top last:border-b-0">
+              <td class="px-4 py-3 text-bone/70">
+                <span class="font-mono text-xs">{String(o.id).slice(0, 8)}</span>
+                <p class="mt-0.5 text-xs text-bone/40">{new Date(o.created_at).toLocaleDateString("es-AR")}</p>
+              </td>
+              <td class="px-4 py-3 text-bone/80">{o.email}</td>
+              <td class="px-4 py-3 text-bone/80">$ {Number(o.total).toLocaleString("es-AR")}</td>
+              <td class="px-4 py-3">
+                <span class="bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-bone/70">
+                  {o.estado_pago}
+                </span>
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  class={`px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+                    o.estado_envio === "enviado" || o.estado_envio === "entregado"
+                      ? "bg-steel text-black"
+                      : "bg-white/10 text-bone/70"
+                  }`}
+                >
+                  {o.estado_envio}
+                </span>
+                {o.numero_seguimiento && <p class="mt-1 text-xs text-bone/50">Seg.: {o.numero_seguimiento}</p>}
+              </td>
+              <td class="px-4 py-3">
+                {o.estado_envio === "pendiente" ? (
+                  <form method="POST" action={actions.orders.markShipped} class="flex items-center gap-2">
+                    <input type="hidden" name="id" value={o.id} />
+                    <input
+                      type="text"
+                      name="numero_seguimiento"
+                      placeholder="N° de seguimiento"
+                      required
+                      class="w-36 border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-bone outline-none focus:border-steel"
+                    />
+                    <button
+                      type="submit"
+                      class="border border-steel px-3 py-1.5 text-[10px] uppercase tracking-widest text-steel transition-colors hover:bg-steel hover:text-black"
+                    >
+                      Enviar
+                    </button>
+                  </form>
+                ) : (
+                  <span class="text-xs text-bone/40">—</span>
+                )}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+
+    {(orders ?? []).length === 0 && (
+      <p class="px-4 py-8 text-center text-sm text-bone/50">No hay pedidos todavía.</p>
+    )}
+  </div>
+</AdminLayout>
